@@ -1,0 +1,80 @@
+.pokemon-search {
+  position: relative;
+  width: 300px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+}
+
+.search-input::placeholder {
+  color: var(--text);
+}
+
+.search-loading {
+  padding: 8px 14px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 4px;
+  padding: 4px;
+  list-style: none;
+  z-index: 100;
+  box-shadow: var(--shadow);
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.search-result-item:hover {
+  background: var(--accent-bg);
+}
+
+.search-result-sprite {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.search-result-name {
+  flex: 1;
+  color: var(--text-h);
+  font-size: 15px;
+  text-align: left;
+}
+
+.search-result-id {
+  color: var(--text);
+  font-size: 13px;
+}
