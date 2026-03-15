@@ -10,9 +10,17 @@ interface PokeApiSpecies {
   names: { language: { name: string }; name: string }[];
 }
 
-let allPokemonCache: { name: string; id: number }[] = [];
+interface PokemonEntry {
+  name: string;
+  id: number;
+  nameJa: string;
+}
 
-async function fetchAllPokemon(): Promise<{ name: string; id: number }[]> {
+let allPokemonCache: PokemonEntry[] = [];
+let jaNamesFetched = false;
+let jaNamesFetchPromise: Promise<void> | null = null;
+
+async function fetchAllPokemon(): Promise<PokemonEntry[]> {
   if (allPokemonCache.length > 0) return allPokemonCache;
   const res = await fetch(
     "https://pokeapi.co/api/v2/pokemon?limit=1025&offset=0"
@@ -21,26 +29,48 @@ async function fetchAllPokemon(): Promise<{ name: string; id: number }[]> {
   allPokemonCache = data.results.map((p: PokeApiPokemon, i: number) => ({
     name: p.name,
     id: i + 1,
+    nameJa: "",
   }));
   return allPokemonCache;
 }
 
-const jaNameCache = new Map<number, string>();
+async function fetchJapaneseNames(): Promise<void> {
+  if (jaNamesFetched) return;
+  if (jaNamesFetchPromise) return jaNamesFetchPromise;
 
-async function fetchJapaneseName(id: number): Promise<string> {
-  if (jaNameCache.has(id)) return jaNameCache.get(id)!;
-  try {
-    const res = await fetch(
-      `https://pokeapi.co/api/v2/pokemon-species/${id}`
-    );
-    const data: PokeApiSpecies = await res.json();
-    const ja = data.names.find((n) => n.language.name === "ja-Hrkt");
-    const name = ja?.name ?? "";
-    jaNameCache.set(id, name);
-    return name;
-  } catch {
-    return "";
-  }
+  jaNamesFetchPromise = (async () => {
+    const allPokemon = await fetchAllPokemon();
+    const batchSize = 30;
+
+    for (let i = 0; i < allPokemon.length; i += batchSize) {
+      const batch = allPokemon.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(async (p) => {
+          if (p.nameJa) return;
+          try {
+            const res = await fetch(
+              `https://pokeapi.co/api/v2/pokemon-species/${p.id}`
+            );
+            const data: PokeApiSpecies = await res.json();
+            const ja = data.names.find((n) => n.language.name === "ja-Hrkt");
+            p.nameJa = ja?.name ?? "";
+          } catch {
+            // skip
+          }
+        })
+      );
+    }
+    jaNamesFetched = true;
+  })();
+
+  return jaNamesFetchPromise;
+}
+
+// Start pre-fetching Japanese names immediately on module load
+fetchAllPokemon().then(() => fetchJapaneseNames());
+
+function isJapanese(text: string): boolean {
+  return /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(text);
 }
 
 export function usePokemonSearch() {
@@ -63,46 +93,66 @@ export function usePokemonSearch() {
       setLoading(true);
       try {
         const allPokemon = await fetchAllPokemon();
-        const q = query.toLowerCase().trim();
+        const q = query.trim();
+        const qLower = q.toLowerCase();
+        const japanese = isJapanese(q);
 
-        // Filter by English name
-        const matched = allPokemon
-          .filter((p) => p.name.includes(q))
-          .slice(0, 20);
-
-        // Also try Japanese name search
-        const jaMatched: { name: string; id: number }[] = [];
-        for (const p of allPokemon) {
-          if (controller.signal.aborted) return;
-          const jaName = jaNameCache.get(p.id);
-          if (jaName && jaName.includes(q)) {
-            jaMatched.push(p);
-          }
+        // If Japanese query, wait for Japanese names to be available
+        if (japanese) {
+          await fetchJapaneseNames();
         }
-
-        const combined = [
-          ...matched,
-          ...jaMatched.filter((j) => !matched.some((m) => m.id === j.id)),
-        ].slice(0, 20);
 
         if (controller.signal.aborted) return;
 
-        // Fetch Japanese names for results
-        const pokemonResults: Pokemon[] = await Promise.all(
-          combined.map(async (p) => {
-            const jaName = await fetchJapaneseName(p.id);
-            return {
-              id: p.id,
-              name: p.name,
-              nameJa: jaName,
-              sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`,
-            };
+        let matched: PokemonEntry[];
+
+        if (japanese) {
+          matched = allPokemon
+            .filter((p) => p.nameJa.includes(q))
+            .slice(0, 20);
+        } else {
+          // English name search + any cached Japanese name matches
+          const engMatched = allPokemon.filter((p) =>
+            p.name.includes(qLower)
+          );
+          const jaMatched = allPokemon.filter(
+            (p) =>
+              p.nameJa &&
+              p.nameJa.toLowerCase().includes(qLower) &&
+              !engMatched.some((e) => e.id === p.id)
+          );
+          matched = [...engMatched, ...jaMatched].slice(0, 20);
+        }
+
+        if (controller.signal.aborted) return;
+
+        // Fetch any missing Japanese names for results
+        await Promise.all(
+          matched.map(async (p) => {
+            if (p.nameJa) return;
+            try {
+              const res = await fetch(
+                `https://pokeapi.co/api/v2/pokemon-species/${p.id}`
+              );
+              const data: PokeApiSpecies = await res.json();
+              const ja = data.names.find((n) => n.language.name === "ja-Hrkt");
+              p.nameJa = ja?.name ?? "";
+            } catch {
+              // skip
+            }
           })
         );
 
-        if (!controller.signal.aborted) {
-          setResults(pokemonResults);
-        }
+        if (controller.signal.aborted) return;
+
+        const pokemonResults: Pokemon[] = matched.map((p) => ({
+          id: p.id,
+          name: p.name,
+          nameJa: p.nameJa,
+          sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`,
+        }));
+
+        setResults(pokemonResults);
       } catch {
         if (!controller.signal.aborted) {
           setResults([]);
