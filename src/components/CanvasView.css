@@ -27,6 +27,11 @@
   cursor: grab;
 }
 
+.arrow-layer .arrow-body-handle {
+  pointer-events: all;
+  cursor: move;
+}
+
 .arrow-layer .arrow-handle:hover {
   fill: rgba(100, 100, 255, 0.3);
   stroke: rgba(100, 100, 255, 0.6);

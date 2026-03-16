@@ -45,6 +45,11 @@ export function CanvasView({
     offsetX: number;
     offsetY: number;
   } | null>(null);
+  const [draggingArrow, setDraggingArrow] = useState<{
+    id: string;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
 
   const getCanvasPos = useCallback(
     (e: React.MouseEvent | MouseEvent) => {
@@ -110,6 +115,25 @@ export function CanvasView({
     [arrows, getCanvasPos]
   );
 
+  // Arrow body dragging (move entire arrow)
+  const handleArrowBodyMouseDown = useCallback(
+    (e: React.MouseEvent, arrowId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = getCanvasPos(e);
+      const arrow = arrows.find((a) => a.id === arrowId);
+      if (!arrow) return;
+      const midX = (arrow.startX + arrow.endX) / 2;
+      const midY = (arrow.startY + arrow.endY) / 2;
+      setDraggingArrow({
+        id: arrowId,
+        offsetX: pos.x - midX,
+        offsetY: pos.y - midY,
+      });
+    },
+    [arrows, getCanvasPos]
+  );
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       const pos = getCanvasPos(e);
@@ -140,6 +164,25 @@ export function CanvasView({
           onUpdateArrow(updated);
         }
       }
+
+      if (draggingArrow) {
+        const arrow = arrows.find((a) => a.id === draggingArrow.id);
+        if (arrow) {
+          const midX = (arrow.startX + arrow.endX) / 2;
+          const midY = (arrow.startY + arrow.endY) / 2;
+          const newMidX = pos.x - draggingArrow.offsetX;
+          const newMidY = pos.y - draggingArrow.offsetY;
+          const dx = newMidX - midX;
+          const dy = newMidY - midY;
+          onUpdateArrow({
+            ...arrow,
+            startX: arrow.startX + dx,
+            startY: arrow.startY + dy,
+            endX: arrow.endX + dx,
+            endY: arrow.endY + dy,
+          });
+        }
+      }
     };
 
     const handleMouseUp = () => {
@@ -168,6 +211,10 @@ export function CanvasView({
       if (editingArrow) {
         setEditingArrow(null);
       }
+
+      if (draggingArrow) {
+        setDraggingArrow(null);
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -180,6 +227,7 @@ export function CanvasView({
     dragging,
     drawingArrow,
     editingArrow,
+    draggingArrow,
     arrows,
     arrowWidth,
     arrowColor,
@@ -230,6 +278,17 @@ export function CanvasView({
         />
         {!isPreview && (
           <>
+            {/* Invisible thick line for drag-and-drop of entire arrow */}
+            <line
+              x1={arrow.startX}
+              y1={arrow.startY}
+              x2={arrow.endX}
+              y2={arrow.endY}
+              stroke="transparent"
+              strokeWidth={Math.max(arrow.width * 3, 12)}
+              className="arrow-body-handle"
+              onMouseDown={(e) => handleArrowBodyMouseDown(e, arrow.id)}
+            />
             <circle
               cx={arrow.startX}
               cy={arrow.startY}
