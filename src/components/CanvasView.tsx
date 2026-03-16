@@ -6,6 +6,7 @@ interface Props {
   pokemonList: PlacedPokemon[];
   onUpdatePosition: (uid: string, x: number, y: number) => void;
   onRemovePokemon: (uid: string) => void;
+  onDuplicatePokemon: (uid: string) => void;
   arrows: Arrow[];
   onUpdateArrow: (arrow: Arrow) => void;
   onRemoveArrow: (id: string) => void;
@@ -19,6 +20,7 @@ export function CanvasView({
   pokemonList,
   onUpdatePosition,
   onRemovePokemon,
+  onDuplicatePokemon,
   arrows,
   onUpdateArrow,
   onRemoveArrow,
@@ -358,6 +360,16 @@ export function CanvasView({
           <span className="pokemon-label">
             {placed.pokemon.nameJa || placed.pokemon.name}
           </span>
+          <button
+            className="duplicate-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicatePokemon(placed.uid);
+            }}
+            title="コピー"
+          >
+            +
+          </button>
           <button
             className="remove-btn"
             onClick={(e) => {
