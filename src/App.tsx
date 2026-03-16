@@ -35,6 +35,20 @@ function App() {
     setPokemonList((prev) => prev.filter((p) => p.uid !== uid));
   }, []);
 
+  const handleDuplicatePokemon = useCallback((uid: string) => {
+    setPokemonList((prev) => {
+      const source = prev.find((p) => p.uid === uid);
+      if (!source) return prev;
+      const duplicate: PlacedPokemon = {
+        uid: crypto.randomUUID(),
+        pokemon: source.pokemon,
+        x: source.x + 60,
+        y: source.y + 60,
+      };
+      return [...prev, duplicate];
+    });
+  }, []);
+
   const handleArrowCreated = useCallback((arrow: Arrow) => {
     setArrows((prev) => [...prev, arrow]);
   }, []);
@@ -70,6 +84,7 @@ function App() {
         pokemonList={pokemonList}
         onUpdatePosition={handleUpdatePosition}
         onRemovePokemon={handleRemovePokemon}
+        onDuplicatePokemon={handleDuplicatePokemon}
         arrows={arrows}
         onUpdateArrow={handleUpdateArrow}
         onRemoveArrow={handleRemoveArrow}

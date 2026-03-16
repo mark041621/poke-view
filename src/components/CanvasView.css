@@ -27,6 +27,11 @@
   cursor: grab;
 }
 
+.arrow-layer .arrow-body-handle {
+  pointer-events: all;
+  cursor: move;
+}
+
 .arrow-layer .arrow-handle:hover {
   fill: rgba(100, 100, 255, 0.3);
   stroke: rgba(100, 100, 255, 0.6);
@@ -69,6 +74,33 @@
   border: 1px solid var(--border);
   white-space: nowrap;
   margin-top: -4px;
+}
+
+.duplicate-btn {
+  position: absolute;
+  top: -6px;
+  right: 18px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: #2ecc71;
+  color: white;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.placed-pokemon:hover .duplicate-btn {
+  display: flex;
+}
+
+.duplicate-btn:hover {
+  background: #27ae60;
 }
 
 .remove-btn {
